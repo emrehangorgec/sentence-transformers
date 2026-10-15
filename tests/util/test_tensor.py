@@ -70,14 +70,14 @@ def test_normalize_embeddings_single_vector() -> None:
     assert torch.allclose(normalized, embedding / 5.0)
 
 
-def test_normalize_embeddings_single_sparse_vector() -> None:
-    """A 1D sparse embedding, as returned by `SparseEncoder.encode()` for a single input, is normalized as one vector."""
-    embedding = torch.tensor([3.0, -4.0, 0.0, 0.0]).to_sparse()
-    normalized = normalize_embeddings(embedding)
+@pytest.mark.parametrize("values", [[3.0, -4.0, 0.0, 0.0], [0.0, 0.0], [], [1e-15, 0.0]])
+def test_normalize_embeddings_single_sparse_vector(values: list[float]) -> None:
+    embedding = torch.tensor(values)
+    normalized = normalize_embeddings(embedding.to_sparse())
 
     assert normalized.is_sparse
     assert normalized.shape == embedding.shape
-    assert torch.allclose(normalized.to_dense(), torch.tensor([0.6, -0.8, 0.0, 0.0]))
+    torch.testing.assert_close(normalized.to_dense(), normalize_embeddings(embedding))
 
 
 @pytest.mark.parametrize(("array_fn", "dtype"), [(torch.tensor, torch.float32), (np.array, torch.float64)])

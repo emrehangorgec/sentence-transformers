@@ -133,17 +133,14 @@ def normalize_embeddings(embeddings: Tensor) -> Tensor:
     embeddings = embeddings.coalesce()
     indices, values = embeddings.indices(), embeddings.values()
 
-    # A single vector is one row, so all of its values share one norm. Indexing by its only axis
-    # would instead divide every value by itself.
     if embeddings.dim() == 1:
-        row_ids, num_rows = torch.zeros_like(indices[0]), 1
-    else:
-        row_ids, num_rows = indices[0], embeddings.size(0)
+        normalized_values = torch.nn.functional.normalize(values, p=2, dim=0)
+        return torch.sparse_coo_tensor(indices, normalized_values, embeddings.size())
 
     # Compute row norms efficiently
-    row_norms = torch.zeros(num_rows, device=embeddings.device)
-    row_norms.index_add_(0, row_ids, values**2)
-    row_norms = torch.sqrt(row_norms).index_select(0, row_ids)
+    row_norms = torch.zeros(embeddings.size(0), device=embeddings.device)
+    row_norms.index_add_(0, indices[0], values**2)
+    row_norms = torch.sqrt(row_norms).index_select(0, indices[0])
 
     # Normalize values where norm > 0
     mask = row_norms > 0
